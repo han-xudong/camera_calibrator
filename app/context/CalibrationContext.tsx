@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 interface CalibrationContextType {
   isReady: boolean;
   initError: string | null;
+  loadingStatus: string | null;
   detect: (imageData: ImageData, settings: any) => Promise<any>;
   calibrate: (allImagePoints: any[], objPoints: any[], imageSize: any) => Promise<any>;
 }
@@ -14,6 +15,7 @@ const CalibrationContext = createContext<CalibrationContextType | null>(null);
 export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState<string | null>('Initializing...');
   const workerRef = useRef<Worker | null>(null);
   const promiseMap = useRef<Map<string, { resolve: Function; reject: Function }>>(new Map());
 
@@ -23,17 +25,21 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     workerRef.current = worker;
 
     worker.onmessage = (e) => {
-      const { type, id, payload, error } = e.data;
+      const { type, id, payload, error, message } = e.data;
 
       if (type === 'INIT_SUCCESS') {
         console.log('Worker Init Success');
         setIsReady(true);
+        setLoadingStatus(null);
         const p = promiseMap.current.get(id);
         if (p) p.resolve();
+      } else if (type === 'PROGRESS') {
+          setLoadingStatus(message);
       } else if (error) {
         console.error('Worker Error:', error);
         if (type === 'ERROR' && id && id.startsWith('init_')) {
              setInitError(error);
+             setLoadingStatus(null);
         }
         const p = promiseMap.current.get(id);
         if (p) p.reject(new Error(error));
@@ -210,7 +216,7 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   return (
-    <CalibrationContext.Provider value={{ isReady, initError, detect, calibrate }}>
+    <CalibrationContext.Provider value={{ isReady, initError, loadingStatus, detect, calibrate }}>
       {children}
     </CalibrationContext.Provider>
   );

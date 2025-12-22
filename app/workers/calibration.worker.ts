@@ -24,6 +24,8 @@ import { performCalibration } from '../utils/calibration';
 async function loadOpenCV(): Promise<void> {
     if (isOpenCVLoaded) return;
     
+    self.postMessage({ type: 'PROGRESS', message: 'Loading OpenCV...' });
+    
     return new Promise((resolve, reject) => {
         // 1. Setup Emscripten Module Config
         // This is the standard way to detect when WASM/ASM.js is ready.
@@ -261,11 +263,13 @@ async function loadAprilTag(url: string): Promise<void> {
         };
 
         importScripts(absoluteUrl);
+        self.postMessage({ type: 'PROGRESS', message: 'Loading AprilTag WASM...' });
 
         // Wait for AprilTagWasm to be available
         const check = async () => {
              // @ts-ignore
             if (self.AprilTagWasm) {
+                self.postMessage({ type: 'PROGRESS', message: 'Initializing AprilTag...' });
                 // @ts-ignore
                 atag_module = await self.AprilTagWasm(self.Module);
                 
