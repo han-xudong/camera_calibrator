@@ -78,7 +78,13 @@ emcmake cmake ../opencv \
     -DWITH_PTHREADS_PF=OFF
 
 echo "Building OpenCV (Libraries)..."
-emmake make -j$(nproc) install
+# Detect core count for parallel build
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CORES=$(sysctl -n hw.ncpu)
+else
+    CORES=$(nproc)
+fi
+emmake make -j$CORES install
 
 # 4. Build Our Project Linking to Minimal OpenCV
 echo "Building Camera Calibrator WASM..."
