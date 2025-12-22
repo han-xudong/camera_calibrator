@@ -421,10 +421,41 @@ export function performCalibration(
         // Correct RMS calculation: sqrt(SSE / N)
         const rms = Math.sqrt((fittedParams.parameterError || 0) / dataY.length);
         
+        // Calculate Per-View Reprojection Errors
+        const perViewErrors: number[] = [];
+        
+        const optimizedK = new Matrix([
+            [optFx, 0, optCx],
+            [0, optFy, optCy],
+            [0, 0, 1]
+        ]);
+        const optimizedDist = [optK1, optK2, 0, 0, 0];
+
+        allImagePoints.forEach((imgPts, i) => {
+             const base = 6 + i * 6;
+             const rvec = [p[base], p[base+1], p[base+2]];
+             const tvec = [p[base+3], p[base+4], p[base+5]];
+             
+             const R = rodriguesToMatrix(rvec);
+             const t = new Matrix([[tvec[0]], [tvec[1]], [tvec[2]]]);
+             
+             let sumSqErr = 0;
+             imgPts.forEach((pt, j) => {
+                 const objPt = objPoints[j];
+                 const proj = projectPoint(objPt.x, objPt.y, 0, optimizedK, R, t, optimizedDist);
+                 const err = (proj.u - pt.x)**2 + (proj.v - pt.y)**2;
+                 sumSqErr += err;
+             });
+             
+             const meanSqErr = sumSqErr / imgPts.length;
+             perViewErrors.push(Math.sqrt(meanSqErr));
+        });
+
         return {
             cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1],
             distCoeffs: [optK1, optK2, 0, 0, 0], 
             rms: rms,
+            perViewErrors: perViewErrors,
             rvecs: extrinsics.map((_, i) => {
                  const base = 6 + i * 6;
                  return [p[base], p[base+1], p[base+2]];
@@ -440,6 +471,7 @@ export function performCalibration(
             cameraMatrix: [intrinsics.fx, 0, intrinsics.cx, 0, intrinsics.fy, intrinsics.cy, 0, 0, 1],
             distCoeffs: [0, 0, 0, 0, 0],
             rms: -1,
+            perViewErrors: [],
             rvecs: extrinsics.map(e => [0,0,0]),
             tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
         };
