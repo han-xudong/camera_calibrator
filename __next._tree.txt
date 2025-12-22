@@ -1,2 +1,2 @@
-:HL["/camera_calibrator/_next/static/chunks/2501de4ff6b5e04a.css","style"]
-0:{"buildId":"UkO22qy6h11NPt1NTO9Ao","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
+:HL["/camera_calibrator/_next/static/css/96ddbcce92e28a63.css","style"]
+0:{"buildId":"LjbHpOekYnXbUlYPPnCyP","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}

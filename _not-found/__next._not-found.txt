@@ -1,4 +1,4 @@
 1:"$Sreact.fragment"
-2:I[39756,["/camera_calibrator/_next/static/chunks/3995be56f7df5b53.js"],"default"]
-3:I[37457,["/camera_calibrator/_next/static/chunks/3995be56f7df5b53.js"],"default"]
-0:{"buildId":"UkO22qy6h11NPt1NTO9Ao","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}
+2:I[7121,[],""]
+3:I[4581,[],""]
+0:{"buildId":"LjbHpOekYnXbUlYPPnCyP","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}
