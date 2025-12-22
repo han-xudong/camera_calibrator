@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test data
+/test_data
+
+# C++ build artifacts
+cpp/build/
+cpp/.vscode/
+*.o
+*.a
+*.dylib
+*.dSYM/
