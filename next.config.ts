@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  turbopack: {
+    // Empty config to satisfy Next.js 16 requirement when webpack config is present
+  },
 };
 
 export default nextConfig;
