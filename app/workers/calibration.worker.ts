@@ -135,11 +135,7 @@ async function detect(imageData: ImageData, settings: any) {
         return detectCheckerboard(imageData, settings);
     } 
     else if (boardType === 'charuco') {
-        await loadOpenCV();
-        if (!cv || !cv.aruco) {
-             throw new Error('OpenCV loaded but ArUco module is missing. Please replace public/opencv.js with a full build (including aruco/objdetect).');
-        }
-        return detectChArUco(imageData, settings);
+        throw new Error('ChArUco detection not yet implemented in worker.');
     }
     
     throw new Error(`Unknown board type: ${boardType}`);
