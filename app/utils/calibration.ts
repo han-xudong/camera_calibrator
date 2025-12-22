@@ -55,11 +55,9 @@ export function computeHomography(objPoints: {x: number, y: number}[], imgPoints
         data.push([0, 0, 0, -X, -Y, -1, v*X, v*Y, v]);
     }
     
-    // @ts-ignore
     const A = new Matrix(data);
     
     const svd = new SingularValueDecomposition(A);
-    // @ts-ignore
     const V = svd.rightSingularVectors;
     // Last column of V corresponds to smallest singular value
     const h = V.getColumn(8);
@@ -113,7 +111,6 @@ export function computeIntrinsics(homographies: Matrix[]) {
     });
     
     const svd = new SingularValueDecomposition(V);
-    // @ts-ignore
     const b = svd.rightSingularVectors.getColumn(5);
     
     // Construct B
@@ -185,7 +182,6 @@ export function computeExtrinsics(H: Matrix, K: Matrix) {
     R_raw.setColumn(2, r3.to1DArray());
     
     const svd = new SingularValueDecomposition(R_raw);
-    // @ts-ignore
     const R = svd.leftSingularVectors.mmul(svd.rightSingularVectors.transpose());
     
     return { R, t };
@@ -302,7 +298,6 @@ export function performCalibration(
     
     // @ts-ignore
     const fittedParams = LM(
-        // @ts-ignore
         { x: dataX, y: dataY },
         (inputs: number[][], params: number[]) => {
             const [fx, fy, cx, cy, k1, k2] = params;
@@ -322,8 +317,12 @@ export function performCalibration(
                 const P = new Matrix([[objPt.x], [objPt.y], [0]]);
                 const Pc = R.mmul(P).add(t);
                 
-                const x = Pc.get(0, 0) / Pc.get(2, 0);
-                const y = Pc.get(1, 0) / Pc.get(2, 0);
+                // Prevent division by zero
+                const z = Pc.get(2, 0);
+                if (Math.abs(z) < 1e-6) return 0;
+
+                const x = Pc.get(0, 0) / z;
+                const y = Pc.get(1, 0) / z;
                 
                 // Distortion
                 const r2 = x*x + y*y;
@@ -344,12 +343,18 @@ export function performCalibration(
     );
     
     // Extract optimized results
-    const [optFx, optFy, optCx, optCy, optK1, optK2] = fittedParams.parameterValues;
+    // parameterValues is the correct property name for ml-levenberg-marquardt v2/v3, 
+    // but check if it returned just the values or an object. 
+    // The type definition might be slightly different depending on version.
+    // If fittedParams is just the array, use it directly.
+    const p = fittedParams.parameterValues || fittedParams; 
+    // @ts-ignore
+    const [optFx, optFy, optCx, optCy, optK1, optK2] = p;
     
     return {
         cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1], // Flat 3x3
         distCoeffs: [optK1, optK2, 0, 0, 0], 
-        rms: fittedParams.parameterError,
+        rms: fittedParams.parameterError || 0,
         rvecs: extrinsics.map(e => {
             // Convert R to Rodrigues if needed, for now just placeholder
             return [0,0,0]; 
