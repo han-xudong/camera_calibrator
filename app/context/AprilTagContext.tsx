@@ -180,7 +180,33 @@ export const AprilTagProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const calibrate = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
+      // Prioritize Backend Calibration in Development Mode
+      if (process.env.NODE_ENV === 'development') {
+          try {
+              console.log('[Context] Attempting Backend Calibration...');
+              return await calibrateWithBackend(allImagePoints, objPoints, imageSize);
+          } catch (e) {
+              console.warn('[Context] Backend calibration failed, falling back to worker:', e);
+          }
+      }
+
       return callWorker('CALIBRATE', { allImagePoints, objPoints, imageSize });
+  };
+  
+  const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
+      const res = await fetch('/api/calibrate_compute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ allImagePoints, objPoints, imageSize })
+      });
+      
+      const result = await res.json();
+      
+      if (!res.ok) {
+          throw new Error(result.error || 'Backend calibration failed');
+      }
+      
+      return result;
   };
 
   return (
