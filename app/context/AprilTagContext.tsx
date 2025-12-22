@@ -123,91 +123,30 @@ export const AprilTagProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const detect = async (imageData: ImageData, settings: any) => {
-    // Pure Client-Side Strategy (Worker)
+    // Pure Client-Side Strategy (Worker) with custom WASM
+    // We prioritize the worker because it now uses the custom compiled C++->WASM module
+    // which is the same code as the backend but runs in the browser.
     
-    // Fallback: If boardType is checkerboard/chessboard and we have an error or it fails in worker (e.g. OpenCV missing),
-    // we could try the server-side C++ API if running locally or if available.
-    // But since this is primarily for GitHub Pages (static), we stick to worker.
-    
-    // However, if the user explicitly wants to use the local C++ backend during dev:
-    if ((settings.boardType === 'checkerboard' || settings.boardType === 'chessboard') && process.env.NODE_ENV === 'development') {
-        try {
-             return await detectWithBackend(imageData, settings);
-        } catch (e) {
-             console.warn('Backend detection failed, falling back to worker:', e);
-             // Fallback to worker below
-        }
-    }
-
     return callWorker('DETECT', { imageData, settings });
   };
   
-  const detectWithBackend = async (imageData: ImageData, settings: any) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = imageData.width;
-        canvas.height = imageData.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not create canvas context');
-        ctx.putImageData(imageData, 0, 0);
-        
-        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-        if (!blob) throw new Error('Failed to create image blob');
-        
-        const formData = new FormData();
-        formData.append('image', blob, 'upload.jpg');
-        formData.append('rows', String(settings.rows || 0));
-        formData.append('cols', String(settings.cols || 0));
-        
-        const res = await fetch('/api/detect', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await res.json();
-        
-        // Map C++ 'success' to frontend 'found'
-        if (result.success !== undefined) {
-            result.found = result.success;
-        }
-        if (result.camera_matrix) result.cameraMatrix = result.camera_matrix;
-        if (result.dist_coeffs) result.distCoeffs = result.dist_coeffs;
-
-        if (!res.ok) {
-             throw new Error(result.error || 'Backend detection failed');
-        }
-        
-        return result;
-  };
+  // Deprecated: Backend detection fallback
+  // Kept only for reference or emergency fallback if WASM fails to load completely
+  /*
+  const detectWithBackend = async (imageData: ImageData, settings: any) => { ... }
+  */
 
   const calibrate = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
-      // Prioritize Backend Calibration in Development Mode
-      if (process.env.NODE_ENV === 'development') {
-          try {
-              console.log('[Context] Attempting Backend Calibration...');
-              return await calibrateWithBackend(allImagePoints, objPoints, imageSize);
-          } catch (e) {
-              console.warn('[Context] Backend calibration failed, falling back to worker:', e);
-          }
-      }
-
+      // Pure Client-Side Strategy (Worker) with custom WASM
+      // The worker now calls the C++ WASM 'calibrateCamera' function.
+      
       return callWorker('CALIBRATE', { allImagePoints, objPoints, imageSize });
   };
   
-  const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
-      const res = await fetch('/api/calibrate_compute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ allImagePoints, objPoints, imageSize })
-      });
-      
-      const result = await res.json();
-      
-      if (!res.ok) {
-          throw new Error(result.error || 'Backend calibration failed');
-      }
-      
-      return result;
-  };
+  // Deprecated: Backend calibration fallback
+  /*
+  const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any) => { ... }
+  */
 
   return (
     <AprilTagContext.Provider value={{ isReady, initError, detect, calibrate }}>
