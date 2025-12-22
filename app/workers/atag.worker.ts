@@ -8,7 +8,6 @@ declare global {
   }
 }
 
-let AprilTagWasm: any = null;
 let atag_module: any = null;
 let atag_detect: any = null;
 let atag_init: any = null;
@@ -285,6 +284,113 @@ function detectChArUco(imageData: ImageData, settings: any) {
     }
 }
 
+function performOpenCVCalibration(allImagePoints: any[], objPoints: any[], imageSize: any) {
+    const N = allImagePoints.length;
+    
+    // Prepare OpenCV vectors
+    const objectPointsVec = new cv.MatVector();
+    const imagePointsVec = new cv.MatVector();
+    
+    // Convert JS arrays to cv.Mat
+    for (let i = 0; i < N; i++) {
+        const imgPts = allImagePoints[i];
+        // objPoints might be shared (1D array) or per-image (2D array)
+        // Check input format
+        const currentObjPts = Array.isArray(objPoints[0]) ? objPoints[i] : objPoints;
+        
+        // Image Points (2D: x, y)
+        const imgMat = new cv.Mat(imgPts.length, 1, cv.CV_32FC2);
+        for (let j = 0; j < imgPts.length; j++) {
+            imgMat.data32F[j * 2] = imgPts[j].x;
+            imgMat.data32F[j * 2 + 1] = imgPts[j].y;
+        }
+        imagePointsVec.push_back(imgMat);
+        imgMat.delete();
+        
+        // Object Points (3D: x, y, z)
+        const objMat = new cv.Mat(currentObjPts.length, 1, cv.CV_32FC3);
+        for (let j = 0; j < currentObjPts.length; j++) {
+            objMat.data32F[j * 3] = currentObjPts[j].x;
+            objMat.data32F[j * 3 + 1] = currentObjPts[j].y;
+            objMat.data32F[j * 3 + 2] = currentObjPts[j].z || 0;
+        }
+        objectPointsVec.push_back(objMat);
+        objMat.delete();
+    }
+    
+    const cameraMatrix = new cv.Mat(); // 3x3
+    const distCoeffs = new cv.Mat(); // 5x1 or 8x1
+    const rvecs = new cv.MatVector();
+    const tvecs = new cv.MatVector();
+    const stdDevIntrinsics = new cv.Mat();
+    const stdDevExtrinsics = new cv.Mat();
+    const perViewErrors = new cv.Mat();
+    
+    const size = new cv.Size(imageSize.width, imageSize.height);
+    // Flags: None by default
+    const flags = 0;
+    
+    const rms = cv.calibrateCameraExtended(
+        objectPointsVec, 
+        imagePointsVec, 
+        size, 
+        cameraMatrix, 
+        distCoeffs, 
+        rvecs, 
+        tvecs, 
+        stdDevIntrinsics, 
+        stdDevExtrinsics, 
+        perViewErrors, 
+        flags
+    );
+    
+    // Convert results back to JS
+    const result: any = {
+        cameraMatrix: [],
+        distCoeffs: [],
+        rvecs: [],
+        tvecs: [],
+        rms: rms,
+        perViewErrors: []
+    };
+    
+    // Camera Matrix
+    for (let i = 0; i < 9; i++) result.cameraMatrix.push(cameraMatrix.data64F[i]);
+    
+    // Dist Coeffs
+    for (let i = 0; i < distCoeffs.rows * distCoeffs.cols; i++) result.distCoeffs.push(distCoeffs.data64F[i]);
+    
+    // Per View Errors
+    for (let i = 0; i < perViewErrors.rows; i++) result.perViewErrors.push(perViewErrors.data64F[i]);
+    
+    // Extrinsics
+    for (let i = 0; i < rvecs.size(); i++) {
+        const r = rvecs.get(i);
+        const t = tvecs.get(i);
+        
+        const rArr = [r.data64F[0], r.data64F[1], r.data64F[2]];
+        const tArr = [t.data64F[0], t.data64F[1], t.data64F[2]];
+        
+        result.rvecs.push(rArr);
+        result.tvecs.push(tArr);
+        
+        r.delete(); t.delete();
+    }
+    
+    // Cleanup
+    objectPointsVec.delete();
+    imagePointsVec.delete();
+    cameraMatrix.delete();
+    distCoeffs.delete();
+    rvecs.delete();
+    tvecs.delete();
+    stdDevIntrinsics.delete();
+    stdDevExtrinsics.delete();
+    perViewErrors.delete();
+    
+    return result;
+}
+
 self.onmessage = async (e: MessageEvent) => {
   const { type, payload, id } = e.data;
 
@@ -311,6 +417,19 @@ self.onmessage = async (e: MessageEvent) => {
         // payload: { allImagePoints, objPoints, imageSize }
         // allImagePoints: {x,y}[][]
         // objPoints: {x,y}[]
+        
+        // Try to use OpenCV WASM calibration first if available (Faster & Standard)
+        if (cv && cv.calibrateCamera && cv.Mat) {
+            try {
+                const result = performOpenCVCalibration(payload.allImagePoints, payload.objPoints, payload.imageSize);
+                self.postMessage({ type: 'CALIBRATE_SUCCESS', id, payload: result });
+                break;
+            } catch (e) {
+                console.error('[Worker] OpenCV Calibration failed, falling back to JS:', e);
+            }
+        }
+        
+        // Fallback to JS implementation
         const calibResult = performCalibration(payload.allImagePoints, payload.objPoints, payload.imageSize);
         self.postMessage({ type: 'CALIBRATE_SUCCESS', id, payload: calibResult });
         break;
