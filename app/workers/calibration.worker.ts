@@ -271,8 +271,22 @@ async function loadAprilTag(url: string): Promise<void> {
             if (self.AprilTagWasm) {
                 try {
                     self.postMessage({ type: 'PROGRESS', message: 'Initializing AprilTag...' });
-                    // @ts-ignore
-                    atag_module = await self.AprilTagWasm(self.Module);
+                    
+                    // Add a timeout for the factory call itself
+                    const factoryPromise = new Promise(async (res, rej) => {
+                        const t = setTimeout(() => rej(new Error('AprilTagWasm factory timeout')), 10000);
+                        try {
+                            // @ts-ignore
+                            const instance = await self.AprilTagWasm(self.Module);
+                            clearTimeout(t);
+                            res(instance);
+                        } catch(e) {
+                            clearTimeout(t);
+                            rej(e);
+                        }
+                    });
+                    
+                    atag_module = await factoryPromise;
                     
                     // Bind C functions
                     atag_init = atag_module.cwrap('atagjs_init', 'number', []);
