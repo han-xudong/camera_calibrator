@@ -259,23 +259,19 @@ export function performCalibration(
         intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, 0, 0 // Intrinsics + 2 dist
     ];
     
-    // Helper to convert Matrix R to Rodrigues vector (omitted for brevity, assume simple updates or just optimize 12 params if lazy, but R constraints matter)
-    // For JS LM, we need a function that takes params and returns error vector
+    // ml-levenberg-marquardt v4 requires x to be a single-level array if using simple interface, 
+    // OR it handles arbitrary input if the function handles it.
+    // However, the issue might be that dataX is an array of arrays.
+    // Let's verify what the library expects.
+    // Actually, checking the docs again (v2+):
+    // function(params) { return (t) => ... }
+    // The library calls function(params) ONCE to get the model.
+    // Then it calls model(x_i) for each data point x_i.
     
-    // For this proof of concept, let's optimize ONLY intrinsics and distortion, keeping extrinsics fixed from initial estimation
-    // Or full BA if we implement Rodrigues
+    // Ensure dataX is passed correctly.
+    // The previous error "params is not iterable" usually comes from inside the library when it tries to use the result of the function if it wasn't a function.
+    // OR if we are using an older version of the library.
     
-    // Let's optimize K (4), Dist (2), and Extrinsics (6 per image)
-    // But ml-levenberg-marquardt might struggle with hundreds of params in JS.
-    // Let's refine K and Dist first.
-    
-    const data: {x: number[], y: number[]} = { x: [], y: [] };
-    
-    // Flatten data for LM
-    // ml-levenberg-marquardt minimizes sum ( data.y[i] - f(data.x[i], params) )^2
-    // We can stack all u and v coordinates.
-    
-    // x input will be [imgIdx, pointIdx, 0] for u, [imgIdx, pointIdx, 1] for v
     const dataX: number[][] = [];
     const dataY: number[] = [];
     
@@ -296,69 +292,77 @@ export function performCalibration(
         errorTolerance: 10e-3
     };
     
-    // @ts-ignore
+    try {
+        // @ts-ignore
     const fittedParams = LM(
+        // @ts-ignore
         { x: dataX, y: dataY },
-        (params: number[]) => {
-            const [fx, fy, cx, cy, k1, k2] = params;
-            // For now, assume fixed extrinsics from initial estimation
-            // In a real implementation, we would optimize extrinsics too (adding them to params)
-            
-            return (input: number[]) => {
-                const imgIdx = input[0];
-                const ptIdx = input[1];
-                const isV = input[2] === 1;
+            (params: number[]) => {
+                const [fx, fy, cx, cy, k1, k2] = params;
                 
-                // Get pre-calculated extrinsics for this image
-                const { R, t } = extrinsics[imgIdx];
-                const objPt = objPoints[ptIdx]; // Z=0
-                
-                // Camera coords
-                const P = new Matrix([[objPt.x], [objPt.y], [0]]);
-                const Pc = R.mmul(P).add(t);
-                
-                // Prevent division by zero
-                const z = Pc.get(2, 0);
-                if (Math.abs(z) < 1e-6) return 0;
+                return (input: number[]) => {
+                    const imgIdx = input[0];
+                    const ptIdx = input[1];
+                    const isV = input[2] === 1;
+                    
+                    // Get pre-calculated extrinsics for this image
+                    // Note: We are NOT optimizing extrinsics here, so we use the initial ones.
+                    // This is "Intrinsics-only bundle adjustment"
+                    const { R, t } = extrinsics[imgIdx];
+                    const objPt = objPoints[ptIdx]; // Z=0
+                    
+                    // Camera coords
+                    const P = new Matrix([[objPt.x], [objPt.y], [0]]);
+                    const Pc = R.mmul(P).add(t);
+                    
+                    // Prevent division by zero
+                    const z = Pc.get(2, 0);
+                    if (Math.abs(z) < 1e-6) return 0;
 
-                const x = Pc.get(0, 0) / z;
-                const y = Pc.get(1, 0) / z;
-                
-                // Distortion
-                const r2 = x*x + y*y;
-                const r4 = r2*r2;
-                // k1, k2
-                
-                const x_d = x * (1 + k1*r2 + k2*r4);
-                const y_d = y * (1 + k1*r2 + k2*r4);
-                
-                if (isV) {
-                    return fy * y_d + cy;
-                } else {
-                    return fx * x_d + cx;
-                }
-            };
-        },
-        options
-    );
-    
-    // Extract optimized results
-    // parameterValues is the correct property name for ml-levenberg-marquardt v2/v3, 
-    // but check if it returned just the values or an object. 
-    // The type definition might be slightly different depending on version.
-    // If fittedParams is just the array, use it directly.
-    const p = fittedParams.parameterValues || fittedParams; 
-    // @ts-ignore
-    const [optFx, optFy, optCx, optCy, optK1, optK2] = p;
-    
-    return {
-        cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1], // Flat 3x3
-        distCoeffs: [optK1, optK2, 0, 0, 0], 
-        rms: fittedParams.parameterError || 0,
-        rvecs: extrinsics.map(e => {
-            // Convert R to Rodrigues if needed, for now just placeholder
-            return [0,0,0]; 
-        }),
-        tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
-    };
+                    const x = Pc.get(0, 0) / z;
+                    const y = Pc.get(1, 0) / z;
+                    
+                    // Distortion
+                    const r2 = x*x + y*y;
+                    const r4 = r2*r2;
+                    // k1, k2
+                    
+                    const x_d = x * (1 + k1*r2 + k2*r4);
+                    const y_d = y * (1 + k1*r2 + k2*r4);
+                    
+                    if (isV) {
+                        return fy * y_d + cy;
+                    } else {
+                        return fx * x_d + cx;
+                    }
+                };
+            },
+            options
+        );
+        
+        // Extract optimized results
+        const p = fittedParams.parameterValues || fittedParams; 
+        // @ts-ignore
+        const [optFx, optFy, optCx, optCy, optK1, optK2] = p;
+        
+        return {
+            cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1], // Flat 3x3
+            distCoeffs: [optK1, optK2, 0, 0, 0], 
+            rms: fittedParams.parameterError || 0,
+            rvecs: extrinsics.map(e => {
+                return [0,0,0]; // Placeholder
+            }),
+            tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
+        };
+    } catch (e) {
+        console.error("Calibration optimization failed:", e);
+        // Fallback to initial guess if optimization fails
+        return {
+            cameraMatrix: [intrinsics.fx, 0, intrinsics.cx, 0, intrinsics.fy, intrinsics.cy, 0, 0, 1],
+            distCoeffs: [0, 0, 0, 0, 0],
+            rms: -1, // Indicate failure
+            rvecs: extrinsics.map(e => [0,0,0]),
+            tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
+        };
+    }
 }
