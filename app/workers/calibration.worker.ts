@@ -293,7 +293,11 @@ async function loadAprilTag(url: string): Promise<void> {
         self.Module = {
             locateFile: (path: string) => {
                 if (path.endsWith('.wasm')) {
-                    return new URL('/apriltag.wasm', self.location.origin).toString();
+                    // We must use the directory of the script that was loaded (url)
+                    // url is like "https://domain.com/base/apriltag.js"
+                    // We want "https://domain.com/base/apriltag.wasm"
+                    const scriptBase = url.substring(0, url.lastIndexOf('/') + 1);
+                    return new URL('apriltag.wasm', scriptBase).toString();
                 }
                 return path;
             },
