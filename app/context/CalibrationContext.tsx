@@ -86,15 +86,18 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // Attempt to detect base path from window.location
     // If we are at /camera_calibrator/, we want /camera_calibrator/apriltag.js
     // We can just pass the filename and let the worker try to figure it out, OR pass the full absolute URL
-    const publicUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/apriltag.js';
-    // Actually this is risky if pathname includes 'page' routes. 
-    // But since it's a SPA mostly, usually pathname is just the basePath.
     
-    // Let's try to find the base path by looking at a known script or just assume standard Next.js behavior
-    // If we set basePath in next.config.ts, we should use process.env.__NEXT_ROUTER_BASEPATH if exposed, or NEXT_PUBLIC_BASE_PATH
+    // NOTE: NEXT_PUBLIC_BASE_PATH usually starts with / if set, or is empty.
+    // If it's set, we should use it.
     
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    const fullApriltagUrl = `${window.location.origin}${basePath}/apriltag.js`;
+    
+    // Ensure we don't double slash if basePath ends with / (it shouldn't)
+    // and ensure we have a slash between base and file
+    const cleanBasePath = basePath.replace(/\/$/, '');
+    const fullApriltagUrl = `${window.location.origin}${cleanBasePath}/apriltag.js`;
+
+    console.log('[Context] Initializing worker with AprilTag URL:', fullApriltagUrl);
 
     worker.postMessage({ type: 'INIT', id: initId, payload: { url: fullApriltagUrl } });
 
