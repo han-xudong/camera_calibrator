@@ -119,8 +119,8 @@ export function computeIntrinsics(homographies: Matrix[]) {
     // Extract parameters
     const v0 = (B12*B13 - B11*B23) / (B11*B22 - B12*B12);
     const lambda = B33 - (B13*B13 + v0*(B12*B13 - B11*B23)) / B11;
-    const alpha = Math.sqrt(lambda / B11);
-    const beta = Math.sqrt(lambda * B11 / (B11*B22 - B12*B12));
+    const alpha = Math.sqrt(Math.abs(lambda / B11)); // Use Abs to be safe
+    const beta = Math.sqrt(Math.abs(lambda * B11 / (B11*B22 - B12*B12)));
     const gamma = -B12 * alpha * alpha * beta / lambda; // Skew
     const u0 = gamma * v0 / beta - B13 * alpha * alpha / lambda;
     
@@ -183,6 +183,37 @@ export function computeExtrinsics(H: Matrix, K: Matrix) {
     
     const svd = new SingularValueDecomposition(R_raw);
     const R = svd.leftSingularVectors.mmul(svd.rightSingularVectors.transpose());
+    
+    // Check if R has determinant -1 (reflection) or if t_z is negative (behind camera)
+    // If t_z < 0, the board is behind the camera, which is physically impossible for visible calibration.
+    // This often happens if the initial homography scaling factor lambda was ambiguous.
+    // We should flip the sign of lambda (and thus t, r1, r2).
+    
+    // However, since we already computed R from r1, r2, r3, flipping r1, r2 would flip r3 (r3 = r1 x r2).
+    // Actually:
+    // If lambda -> -lambda
+    // r1 -> -r1
+    // r2 -> -r2
+    // r3 = (-r1) x (-r2) = r1 x r2 = r3.
+    // So R_new = [-r1 -r2 r3].
+    // t -> -t.
+    
+    // Let's verify t_z.
+    if (t.get(2, 0) < 0) {
+        t.mul(-1);
+        r1.mul(-1);
+        r2.mul(-1);
+        // r3 stays same
+        R_raw.setColumn(0, r1.to1DArray());
+        R_raw.setColumn(1, r2.to1DArray());
+        R_raw.setColumn(2, r3.to1DArray());
+        
+        // Re-orthogonalize
+        const svd2 = new SingularValueDecomposition(R_raw);
+        // @ts-ignore
+        const R2 = svd2.leftSingularVectors.mmul(svd2.rightSingularVectors.transpose());
+        return { R: R2, t };
+    }
     
     return { R, t };
 }
