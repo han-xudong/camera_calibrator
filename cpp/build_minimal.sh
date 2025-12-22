@@ -24,6 +24,9 @@ mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 if [ ! -d "opencv" ]; then
     echo "Cloning OpenCV $OPENCV_VERSION..."
+    # Using 4.5.5 known to work well with older Emscripten, or 4.8.0. 
+    # 4.10.0 might have build issues with certain emsdk versions.
+    # Let's stick to 4.10.0 but ensure we clean up if it failed previously.
     git clone --depth 1 --branch $OPENCV_VERSION https://github.com/opencv/opencv.git
 fi
 
@@ -75,7 +78,9 @@ emcmake cmake ../opencv \
     -DWITH_QUIRC=OFF \
     -DWITH_ADE=OFF \
     -DWITH_ITT=OFF \
-    -DWITH_PTHREADS_PF=OFF
+    -DWITH_PTHREADS_PF=OFF \
+    -DOPENCV_ENABLE_NONFREE=OFF \
+    -DCMAKE_BUILD_TYPE=Release
 
 echo "Building OpenCV (Libraries)..."
 # Detect core count for parallel build
