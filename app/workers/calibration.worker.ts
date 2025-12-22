@@ -59,9 +59,49 @@ async function loadOpenCV(): Promise<void> {
         const loadScript = () => {
             console.log('[Worker] Loading OpenCV script...');
             try {
+                 // Determine base path for OpenCV similar to AprilTag
                  const origin = self.location.origin;
-                 // Try local first
-                 importScripts(`${origin}/opencv.js`);
+                 // We can reuse the path logic passed for AprilTag if we had it, 
+                 // but typically opencv.js is at the root or base path.
+                 
+                 // If we are in GH Pages, we need to respect the path.
+                 // A simple heuristic: if location.pathname has a directory, try that.
+                 // But worker location might be different from page location (blob vs file).
+                 
+                 // Best bet: Try relative path first (./opencv.js) then root (/opencv.js)
+                 // Or better, let's just try to import from the same base as apriltag.js was supposed to be?
+                 // No, loadOpenCV doesn't take a url arg currently.
+                 
+                 // Let's use the global scope to store the base URL if passed during init?
+                 // But loadOpenCV might be called before init if user selects checkerboard first.
+                 
+                 // Fallback: Just try standard paths.
+                 // For GH Pages, /repo/opencv.js is needed.
+                 
+                 // Let's try to construct it from the worker's own location if it's not a blob.
+                 // If worker is blob, location.href is blob:...
+                 
+                 // Simplest fix: Just try a few standard paths.
+                 const paths = [
+                     'opencv.js', // Relative to worker if file, or base if blob
+                     '/opencv.js', // Root
+                     '/camera_calibrator/opencv.js', // Known repo name
+                 ];
+                 
+                 let loaded = false;
+                 for(const p of paths) {
+                     try {
+                         importScripts(p);
+                         loaded = true;
+                         console.log(`[Worker] Loaded OpenCV from ${p}`);
+                         break;
+                     } catch(e) {
+                         // continue
+                     }
+                 }
+                 
+                 if(!loaded) throw new Error("Could not load opencv.js from standard paths");
+
                  console.log('[Worker] importScripts executed');
             } catch (e) {
                  console.warn('[Worker] Local load failed, trying CDN', e);
