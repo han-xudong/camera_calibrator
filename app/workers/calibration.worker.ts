@@ -269,24 +269,29 @@ async function loadAprilTag(url: string): Promise<void> {
         const check = async () => {
              // @ts-ignore
             if (self.AprilTagWasm) {
-                self.postMessage({ type: 'PROGRESS', message: 'Initializing AprilTag...' });
-                // @ts-ignore
-                atag_module = await self.AprilTagWasm(self.Module);
-                
-                // Bind C functions
-                atag_init = atag_module.cwrap('atagjs_init', 'number', []);
-                atag_destroy = atag_module.cwrap('atagjs_destroy', 'number', []);
-                atag_set_detector_options = atag_module.cwrap('atagjs_set_detector_options', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
-                atag_set_img_buffer = atag_module.cwrap('atagjs_set_img_buffer', 'number', ['number', 'number', 'number']);
-                atag_detect = atag_module.cwrap('atagjs_detect', 'number', []);
-                
-                const initResult = atag_init();
-                console.log('atag_init returned:', initResult);
+                try {
+                    self.postMessage({ type: 'PROGRESS', message: 'Initializing AprilTag...' });
+                    // @ts-ignore
+                    atag_module = await self.AprilTagWasm(self.Module);
+                    
+                    // Bind C functions
+                    atag_init = atag_module.cwrap('atagjs_init', 'number', []);
+                    atag_destroy = atag_module.cwrap('atagjs_destroy', 'number', []);
+                    atag_set_detector_options = atag_module.cwrap('atagjs_set_detector_options', 'number', ['number', 'number', 'number', 'number', 'number', 'number', 'number']);
+                    atag_set_img_buffer = atag_module.cwrap('atagjs_set_img_buffer', 'number', ['number', 'number', 'number']);
+                    atag_detect = atag_module.cwrap('atagjs_detect', 'number', []);
+                    
+                    const initResult = atag_init();
+                    console.log('atag_init returned:', initResult);
 
-                atag_set_detector_options(2.0, 0.0, 1, 1, 10, 0, 0); 
-                
-                console.log('AprilTag WASM Initialized (Safe Options Set)');
-                resolve();
+                    atag_set_detector_options(2.0, 0.0, 1, 1, 10, 0, 0); 
+                    
+                    console.log('AprilTag WASM Initialized (Safe Options Set)');
+                    resolve();
+                } catch(e: any) {
+                    console.error("AprilTag WASM Init Failed:", e);
+                    reject(e);
+                }
             } else {
                 setTimeout(check, 100);
             }
