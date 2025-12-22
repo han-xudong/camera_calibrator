@@ -125,17 +125,22 @@ async function detect(imageData: ImageData, settings: any) {
         return detectTags({ imageData });
     } 
     else if (boardType === 'checkerboard' || boardType === 'chessboard') {
+        // NOTE: For static GitHub Pages, we rely on public/opencv.js which MUST be the full version.
+        // If "findChessboardCorners is not a function", the user must replace public/opencv.js
         await loadOpenCV();
         
-        // Final safety check
+        // Final safety check with user-friendly error
         if (!cv || !cv.findChessboardCorners) {
-             throw new Error('OpenCV failed to initialize fully: findChessboardCorners is missing.');
+             throw new Error('OpenCV loaded but calibration functions are missing. Please replace public/opencv.js with a full build (including calib3d).');
         }
 
         return detectCheckerboard(imageData, settings);
     } 
     else if (boardType === 'charuco') {
         await loadOpenCV();
+        if (!cv || !cv.aruco) {
+             throw new Error('OpenCV loaded but ArUco module is missing. Please replace public/opencv.js with a full build (including aruco/objdetect).');
+        }
         return detectChArUco(imageData, settings);
     }
     
