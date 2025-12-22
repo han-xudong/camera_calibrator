@@ -299,12 +299,12 @@ export function performCalibration(
     // @ts-ignore
     const fittedParams = LM(
         { x: dataX, y: dataY },
-        (inputs: number[][], params: number[]) => {
+        (params: number[]) => {
             const [fx, fy, cx, cy, k1, k2] = params;
             // For now, assume fixed extrinsics from initial estimation
             // In a real implementation, we would optimize extrinsics too (adding them to params)
             
-            return inputs.map(input => {
+            return (input: number[]) => {
                 const imgIdx = input[0];
                 const ptIdx = input[1];
                 const isV = input[2] === 1;
@@ -337,7 +337,7 @@ export function performCalibration(
                 } else {
                     return fx * x_d + cx;
                 }
-            });
+            };
         },
         options
     );
