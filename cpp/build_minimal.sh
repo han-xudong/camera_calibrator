@@ -33,6 +33,8 @@ fi
 # 3. Configure and Build Minimal OpenCV
 # We build STATIC libraries for Emscripten.
 echo "Configuring Minimal OpenCV..."
+# Clean build directory to prevent cache issues
+rm -rf build_opencv
 mkdir -p build_opencv
 cd build_opencv
 
@@ -80,7 +82,8 @@ emcmake cmake ../opencv \
     -DWITH_ITT=OFF \
     -DWITH_PTHREADS_PF=OFF \
     -DOPENCV_ENABLE_NONFREE=OFF \
-    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_BUILD_TYPE=Release \
+    -DOPENCV_FORCE_3RDPARTY_BUILD=ON
 
 echo "Building OpenCV (Libraries)..."
 # Detect core count for parallel build
@@ -91,14 +94,30 @@ else
 fi
 emmake make -j$CORES install
 
+# Verify installation
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo "Error: OpenCV installation failed. Directory $INSTALL_DIR does not exist."
+    exit 1
+fi
+
 # 4. Build Our Project Linking to Minimal OpenCV
 echo "Building Camera Calibrator WASM..."
 cd "$SCRIPT_DIR"
+rm -rf build_wasm
 mkdir -p build_wasm
 cd build_wasm
 
-# Point CMake to our custom OpenCV install
-export OPENCV_DIR="$INSTALL_DIR/lib/cmake/opencv4"
+# Find where OpenCVConfig.cmake is
+echo "Searching for OpenCVConfig.cmake in $INSTALL_DIR..."
+OPENCV_CONFIG_PATH=$(find "$INSTALL_DIR" -name "OpenCVConfig.cmake" | head -n 1)
+
+if [ -z "$OPENCV_CONFIG_PATH" ]; then
+    echo "Error: OpenCVConfig.cmake not found! OpenCV build might have failed."
+    exit 1
+fi
+
+export OPENCV_DIR=$(dirname "$OPENCV_CONFIG_PATH")
+echo "Found OpenCV at: $OPENCV_DIR"
 
 emcmake cmake ..
 emmake make
