@@ -50,3 +50,6 @@ cpp/.vscode/
 *.a
 *.dylib
 *.dSYM/
+
+# emsdk
+emsdk/
