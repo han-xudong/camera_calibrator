@@ -248,6 +248,48 @@ export function projectPoint(X: number, Y: number, Z: number, K: Matrix, R: Matr
     return { u, v };
 }
 
+// Rodrigues Conversion Helpers
+function rodriguesToMatrix(r: number[]): Matrix {
+    const theta = Math.sqrt(r[0]*r[0] + r[1]*r[1] + r[2]*r[2]);
+    if (theta < 1e-8) return Matrix.eye(3);
+    
+    const u = new Matrix([[r[0]/theta], [r[1]/theta], [r[2]/theta]]);
+    const K = new Matrix([
+        [0, -u.get(2,0), u.get(1,0)],
+        [u.get(2,0), 0, -u.get(0,0)],
+        [-u.get(1,0), u.get(0,0), 0]
+    ]);
+    
+    // R = I + sin(t)K + (1-cos(t))K^2
+    const I = Matrix.eye(3);
+    const K2 = K.mmul(K);
+    
+    // I + sin * K
+    const term2 = K.mul(Math.sin(theta));
+    // (1-cos) * K^2
+    const term3 = K2.mul(1 - Math.cos(theta));
+    
+    return I.add(term2).add(term3);
+}
+
+function matrixToRodrigues(R: Matrix): number[] {
+    const tr = R.trace();
+    // cos(theta) = (tr - 1) / 2
+    let val = (tr - 1) / 2;
+    if (val > 1) val = 1;
+    if (val < -1) val = -1;
+    
+    const theta = Math.acos(val);
+    if (Math.abs(theta) < 1e-8) return [0, 0, 0];
+    
+    const factor = theta / (2 * Math.sin(theta));
+    const rx = (R.get(2,1) - R.get(1,2)) * factor;
+    const ry = (R.get(0,2) - R.get(2,0)) * factor;
+    const rz = (R.get(1,0) - R.get(0,1)) * factor;
+    
+    return [rx, ry, rz];
+}
+
 export function performCalibration(
     allImagePoints: {x: number, y: number}[][], // Per image, list of detected corners
     objPoints: {x: number, y: number}[], // Model points (z=0)
@@ -281,27 +323,18 @@ export function performCalibration(
     const extrinsics = homographies.map(H => computeExtrinsics(H, K));
     
     // 2. Optimization (Levenberg-Marquardt)
-    // Params vector: [fx, fy, cx, cy, k1, k2, ...R1(3), t1(3), R2(3), t2(3)...]
-    // Using Rodrigues for R (3 params)
+    // Full Bundle Adjustment: Optimize intrinsics + distortion + extrinsics
     
-    // Simplified: Optimize intrinsics + distortion + extrinsics
-    // Initial guess
+    // Params vector: [fx, fy, cx, cy, k1, k2, ... r1x, r1y, r1z, t1x, t1y, t1z, ...]
     const initialParams = [
-        intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, 0, 0 // Intrinsics + 2 dist
+        intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, 0, 0
     ];
     
-    // ml-levenberg-marquardt v4 requires x to be a single-level array if using simple interface, 
-    // OR it handles arbitrary input if the function handles it.
-    // However, the issue might be that dataX is an array of arrays.
-    // Let's verify what the library expects.
-    // Actually, checking the docs again (v2+):
-    // function(params) { return (t) => ... }
-    // The library calls function(params) ONCE to get the model.
-    // Then it calls model(x_i) for each data point x_i.
-    
-    // Ensure dataX is passed correctly.
-    // The previous error "params is not iterable" usually comes from inside the library when it tries to use the result of the function if it wasn't a function.
-    // OR if we are using an older version of the library.
+    extrinsics.forEach(e => {
+        const rvec = matrixToRodrigues(e.R);
+        initialParams.push(rvec[0], rvec[1], rvec[2]);
+        initialParams.push(e.t.get(0,0), e.t.get(1,0), e.t.get(2,0));
+    });
     
     const dataX: number[][] = [];
     const dataY: number[] = [];
@@ -325,22 +358,32 @@ export function performCalibration(
     
     try {
         // @ts-ignore
-    const fittedParams = LM(
-        // @ts-ignore
-        { x: dataX, y: dataY },
+        const fittedParams = LM(
+            // @ts-ignore
+            { x: dataX, y: dataY },
             (params: number[]) => {
                 const [fx, fy, cx, cy, k1, k2] = params;
+                
+                // Pre-compute R matrices for all images from current params
+                const currentExtrinsics: {R: Matrix, t: Matrix}[] = [];
+                for (let i = 0; i < extrinsics.length; i++) {
+                    const baseIdx = 6 + i * 6;
+                    const rvec = [params[baseIdx], params[baseIdx+1], params[baseIdx+2]];
+                    const tvec = [params[baseIdx+3], params[baseIdx+4], params[baseIdx+5]];
+                    
+                    currentExtrinsics.push({
+                        R: rodriguesToMatrix(rvec),
+                        t: new Matrix([[tvec[0]], [tvec[1]], [tvec[2]]])
+                    });
+                }
                 
                 return (input: number[]) => {
                     const imgIdx = input[0];
                     const ptIdx = input[1];
                     const isV = input[2] === 1;
                     
-                    // Get pre-calculated extrinsics for this image
-                    // Note: We are NOT optimizing extrinsics here, so we use the initial ones.
-                    // This is "Intrinsics-only bundle adjustment"
-                    const { R, t } = extrinsics[imgIdx];
-                    const objPt = objPoints[ptIdx]; // Z=0
+                    const { R, t } = currentExtrinsics[imgIdx];
+                    const objPt = objPoints[ptIdx];
                     
                     // Camera coords
                     const P = new Matrix([[objPt.x], [objPt.y], [0]]);
@@ -356,7 +399,6 @@ export function performCalibration(
                     // Distortion
                     const r2 = x*x + y*y;
                     const r4 = r2*r2;
-                    // k1, k2
                     
                     const x_d = x * (1 + k1*r2 + k2*r4);
                     const y_d = y * (1 + k1*r2 + k2*r4);
@@ -376,22 +418,28 @@ export function performCalibration(
         // @ts-ignore
         const [optFx, optFy, optCx, optCy, optK1, optK2] = p;
         
+        // Correct RMS calculation: sqrt(SSE / N)
+        const rms = Math.sqrt((fittedParams.parameterError || 0) / dataY.length);
+        
         return {
-            cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1], // Flat 3x3
+            cameraMatrix: [optFx, 0, optCx, 0, optFy, optCy, 0, 0, 1],
             distCoeffs: [optK1, optK2, 0, 0, 0], 
-            rms: fittedParams.parameterError || 0,
-            rvecs: extrinsics.map(e => {
-                return [0,0,0]; // Placeholder
+            rms: rms,
+            rvecs: extrinsics.map((_, i) => {
+                 const base = 6 + i * 6;
+                 return [p[base], p[base+1], p[base+2]];
             }),
-            tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
+            tvecs: extrinsics.map((_, i) => {
+                 const base = 6 + i * 6;
+                 return [p[base+3], p[base+4], p[base+5]];
+            })
         };
     } catch (e) {
         console.error("Calibration optimization failed:", e);
-        // Fallback to initial guess if optimization fails
         return {
             cameraMatrix: [intrinsics.fx, 0, intrinsics.cx, 0, intrinsics.fy, intrinsics.cy, 0, 0, 1],
             distCoeffs: [0, 0, 0, 0, 0],
-            rms: -1, // Indicate failure
+            rms: -1,
             rvecs: extrinsics.map(e => [0,0,0]),
             tvecs: extrinsics.map(e => [e.t.get(0,0), e.t.get(1,0), e.t.get(2,0)])
         };
