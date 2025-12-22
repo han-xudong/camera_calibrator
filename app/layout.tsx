@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AprilTagProvider } from "./context/AprilTagContext";
+import { CalibrationProvider } from "./context/CalibrationContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
 export const metadata: Metadata = {
@@ -19,9 +19,9 @@ export default function RootLayout({
         className={`antialiased h-screen w-screen overflow-hidden bg-gray-50 text-gray-900 dark:bg-neutral-950 dark:text-gray-100 transition-colors duration-200`}
       >
         <ThemeProvider>
-          <AprilTagProvider>
+          <CalibrationProvider>
             {children}
-          </AprilTagProvider>
+          </CalibrationProvider>
         </ThemeProvider>
       </body>
     </html>

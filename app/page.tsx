@@ -5,8 +5,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { MainContent } from '@/components/MainContent';
 import { ResultsModal } from '@/components/ResultsModal';
 import { SettingsModal, CalibrationSettings } from '@/components/SettingsModal';
-import { useAprilTag } from '@/app/context/AprilTagContext';
-
+import { useCalibration } from '@/app/context/CalibrationContext';
 import { loadImageData } from '@/app/utils/image';
 
 interface CalibrationImage {
@@ -24,7 +23,7 @@ interface CalibrationImage {
 }
 
 export default function Home() {
-  const { isReady, initError, detect, calibrate } = useAprilTag();
+  const { isReady, initError, detect, calibrate } = useCalibration();
   
   // State
   const [images, setImages] = useState<CalibrationImage[]>([]);
