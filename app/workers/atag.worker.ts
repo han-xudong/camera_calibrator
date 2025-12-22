@@ -77,27 +77,22 @@ async function loadOpenCV(): Promise<void> {
             checks++;
             const globalCv = (self as any).cv;
             
-            // Check if global cv is ready
-            if (globalCv && globalCv.Mat) {
+            // Check if global cv is ready and has Mat (basic check)
+            // AND specifically check for findChessboardCorners which we need
+            if (globalCv && globalCv.Mat && globalCv.findChessboardCorners) {
                 clearInterval(checkInterval);
                 if (!isOpenCVLoaded) {
-                    console.log('[Worker] OpenCV found via Polling');
+                    console.log('[Worker] OpenCV (fully loaded) found via Polling');
                     cv = globalCv;
                     isOpenCVLoaded = true;
-                    
-                    // Debug: Check for calibration functions
-                    console.log('[Worker] Checking for findChessboardCorners...');
-                    if (typeof cv.findChessboardCorners === 'function') {
-                        console.log('[Worker] findChessboardCorners is AVAILABLE');
-                    } else {
-                        console.error('[Worker] findChessboardCorners is MISSING');
-                        console.log('[Worker] Available keys (first 50):', Object.keys(cv).slice(0, 50));
-                        console.log('[Worker] Keys matching "Chess":', Object.keys(cv).filter(k => k.includes('Chess')));
-                    }
-                    
                     resolve();
                 }
             } 
+            // If we found 'cv' but it's missing functions, it might still be initializing or it's a minimal build
+            else if (globalCv && globalCv.Mat && !globalCv.findChessboardCorners) {
+                // Keep waiting, maybe it's being attached?
+                if (checks % 10 === 0) console.log('[Worker] OpenCV found but findChessboardCorners missing. Waiting...');
+            }
             // Check if it's a factory (older builds)
             else if (typeof globalCv === 'function' && !isOpenCVLoaded && checks < 5) {
                 // Try calling it if it hasn't started
@@ -131,6 +126,12 @@ async function detect(imageData: ImageData, settings: any) {
     } 
     else if (boardType === 'checkerboard' || boardType === 'chessboard') {
         await loadOpenCV();
+        
+        // Final safety check
+        if (!cv || !cv.findChessboardCorners) {
+             throw new Error('OpenCV failed to initialize fully: findChessboardCorners is missing.');
+        }
+
         return detectCheckerboard(imageData, settings);
     } 
     else if (boardType === 'charuco') {
