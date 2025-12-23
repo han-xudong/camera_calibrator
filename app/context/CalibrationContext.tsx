@@ -22,18 +22,21 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Check backend status on init
   useEffect(() => {
+      // In production (GitHub Pages), we rely on the worker primarily for AprilTag.
+      // But if we have a backend URL, we try to ping it.
+      // However, if the ping fails/timeouts, we shouldn't block the UI or show an error,
+      // because we still have the worker fallback (at least for AprilTag, and maybe OpenCV if WASM loaded).
+      
       const checkBackend = async () => {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
           if (backendUrl) {
               try {
-                  // Set a short timeout to check if it's awake
                   const controller = new AbortController();
                   const id = setTimeout(() => controller.abort(), 2000);
                   
                   await fetch(backendUrl, { signal: controller.signal });
                   clearTimeout(id);
               } catch (e) {
-                  // If it fails or times out, it might be sleeping
                   console.log('Backend might be sleeping or unreachable');
               }
           }
@@ -56,7 +59,13 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const p = promiseMap.current.get(id);
         if (p) p.resolve();
       } else if (type === 'PROGRESS') {
-          setLoadingStatus(message);
+          // If we are already ready, don't block the UI with progress messages 
+          // (unless it's a critical initial load, which 'Initializing...' covers)
+          // Actually, 'Initializing AprilTag...' messages come here.
+          // We only want to show them if we are NOT ready yet.
+          if (!isReady) {
+              setLoadingStatus(message);
+          }
       } else if (error) {
         console.error('Worker Error:', error);
         if (type === 'ERROR' && id && id.startsWith('init_')) {
@@ -112,6 +121,10 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     // NOTE: NEXT_PUBLIC_BASE_PATH usually starts with / if set, or is empty.
     // If it's set, we should use it.
     
+    // Fallback: if we are in production and not running on localhost, 
+    // we might need to be careful about relative paths if base tag isn't set.
+    // But our logic for fullApriltagUrl seems robust enough.
+    
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
     
     // Ensure we don't double slash if basePath ends with / (it shouldn't)
@@ -123,7 +136,21 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     worker.postMessage({ type: 'INIT', id: initId, payload: { url: fullApriltagUrl } });
 
+    // Set a timeout to clear "Initializing..." status if it gets stuck
+    // This is a safety net for the UI
+    const safetyTimeout = setTimeout(() => {
+        setIsReady((prev) => {
+            if (!prev) {
+                console.warn('[Context] Worker init timed out or took too long, forcing UI ready state (features might still be loading)');
+                setLoadingStatus(null);
+                return true; 
+            }
+            return prev;
+        });
+    }, 15000); // 15 seconds
+
     return () => {
+      clearTimeout(safetyTimeout);
       worker.terminate();
     };
   }, []);
