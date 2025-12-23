@@ -53,3 +53,6 @@ cpp/.vscode/
 
 # emsdk
 emsdk/
+
+# Trae IDE
+.trae/
