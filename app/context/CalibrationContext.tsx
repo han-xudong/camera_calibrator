@@ -254,8 +254,8 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
   
   const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any, baseUrl: string) => {
-      setIsBackendWakingUp(true);
-      setLoadingStatus("Calculating calibration... (may take 30s if backend is waking up)");
+      // setIsBackendWakingUp(true);
+      // setLoadingStatus("Calculating calibration... (may take 30s if backend is waking up)");
 
       try {
           // Construct URL:
@@ -277,8 +277,8 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           
           return result;
       } finally {
-          setIsBackendWakingUp(false);
-          setLoadingStatus(null);
+          // setIsBackendWakingUp(false);
+          // setLoadingStatus(null);
       }
   };
 
