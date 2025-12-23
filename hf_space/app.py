@@ -113,6 +113,11 @@ async def calibrate_camera_endpoint(data: CalibrationData):
     try:
         width = data.imageSize.get("width", 0)
         height = data.imageSize.get("height", 0)
+        
+        # Validation
+        if width <= 0 or height <= 0:
+             return {"success": False, "error": f"Invalid image size: {width}x{height}"}
+             
         image_size = (width, height)
         
         # Convert to numpy arrays
@@ -120,19 +125,27 @@ async def calibrate_camera_endpoint(data: CalibrationData):
         img_points_np = []
         
         for i, pts in enumerate(data.objPoints):
+            # Ensure we have points
+            if not pts: continue
+            
             op = np.zeros((len(pts), 3), np.float32)
             for j, p in enumerate(pts):
                 op[j] = [p['x'], p['y'], p.get('z', 0.0)]
             obj_points_np.append(op)
             
         for i, pts in enumerate(data.allImagePoints):
+            if not pts: continue
+            
             ip = np.zeros((len(pts), 1, 2), np.float32) # OpenCV expects (N, 1, 2) for image points
             for j, p in enumerate(pts):
                 ip[j] = [[p['x'], p['y']]]
             img_points_np.append(ip)
             
         if len(obj_points_np) == 0:
-             return {"success": False, "error": "No data points"}
+             return {"success": False, "error": "No valid data points received"}
+             
+        if len(obj_points_np) != len(img_points_np):
+             return {"success": False, "error": "Mismatch between object points and image points count"}
 
         # Calibrate
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(
