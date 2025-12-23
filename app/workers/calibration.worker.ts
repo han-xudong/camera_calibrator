@@ -15,6 +15,7 @@ let atag_init: any = null;
 let atag_set_img_buffer: any = null;
 let atag_set_detector_options: any = null;
 let atag_destroy: any = null;
+let aprilTagUrl = ''; // Store the URL passed during INIT
 
 let cv: any = null;
 let isOpenCVLoaded = false;
@@ -88,6 +89,14 @@ async function loadOpenCV(): Promise<void> {
                      '/camera_calibrator/opencv.js', // Known repo name
                  ];
                  
+                 // If we have aprilTagUrl (passed from main thread which knows the correct base path), use it to derive opencv path
+                 if (aprilTagUrl) {
+                     // aprilTagUrl is like ".../base/path/apriltag.js"
+                     const base = aprilTagUrl.substring(0, aprilTagUrl.lastIndexOf('/') + 1);
+                     // Add to the front of the list
+                     paths.unshift(base + 'opencv.js');
+                 }
+
                  let loaded = false;
                  for(const p of paths) {
                      try {
@@ -259,6 +268,7 @@ self.onmessage = async (e: MessageEvent) => {
   try {
     switch (type) {
       case 'INIT':
+        aprilTagUrl = payload.url;
         await loadAprilTag(payload.url);
         self.postMessage({ type: 'INIT_SUCCESS', id });
         break;
