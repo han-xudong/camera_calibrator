@@ -198,6 +198,19 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     // 3. Fallback to Worker (WASM/JS)
+    // If backend URL is set but connection failed (e.g. timeout), we might reach here.
+    // However, the worker is now disabled for chessboard.
+    // We should check if we tried backend already.
+    
+    // Actually, if backendUrl is set, the previous block executes. 
+    // If 'detectWithBackend' throws (e.g. network error), it catches and logs warning.
+    // Then it continues to this line.
+    
+    if (backendUrl && (settings.boardType === 'checkerboard' || settings.boardType === 'chessboard')) {
+         // If we are here, it means backend failed (or we wouldn't be here if we returned).
+         throw new Error('Remote Backend is unreachable. Please check your network or try again later.');
+    }
+
     return callWorker('DETECT', { imageData, settings });
   };
   
