@@ -28,13 +28,6 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Try vars first, then secrets. The syntax below isn't standard bash fallback in YAML.
-          # We'll use a step before this to determine it, or just use secrets if vars is empty?
-          # Easier: just assume the user might have put it in SECRETS if they couldn't find VARS.
-          # But we can't use '||' here easily.
-          # Let's map both and let the script pick one? No, Next.js needs the specific name.
-          # Best bet: Map secrets.NEXT_PUBLIC_BACKEND_API_URL to the env var if vars is empty.
-          NEXT_PUBLIC_BACKEND_API_URL: ${{ vars.NEXT_PUBLIC_BACKEND_API_URL || secrets.NEXT_PUBLIC_BACKEND_API_URL }}
           # Explicitly set base path to avoid detection issues
           NEXT_PUBLIC_BASE_PATH: /camera_calibrator
 
