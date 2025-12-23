@@ -23,7 +23,8 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Check backend status on init
   useEffect(() => {
       const checkBackend = async () => {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+          // Hardcoded fallback if env var is missing or empty
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://han-xudong-opencv-camera-calibration.hf.space";
           console.log('[Context] Configured Backend URL:', backendUrl);
           
           if (backendUrl) {
@@ -179,7 +180,7 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const detect = async (imageData: ImageData, settings: any) => {
     // 1. Try Remote Backend (if configured)
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://han-xudong-opencv-camera-calibration.hf.space";
     if (backendUrl && (settings.boardType === 'checkerboard' || settings.boardType === 'chessboard')) {
         try {
              return await detectWithBackend(imageData, settings, backendUrl);
@@ -267,7 +268,7 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const calibrate = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
       // 1. Try Remote Backend (if configured)
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://han-xudong-opencv-camera-calibration.hf.space";
       if (backendUrl) {
           try {
               console.log('[Context] Attempting Remote Backend Calibration...');
