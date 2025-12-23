@@ -176,14 +176,15 @@ async function detect(imageData: ImageData, settings: any) {
     else if (boardType === 'checkerboard' || boardType === 'chessboard') {
         // NOTE: For static GitHub Pages, we rely on public/opencv.js which MUST be the full version.
         // If "findChessboardCorners is not a function", the user must replace public/opencv.js
-        await loadOpenCV();
+        // await loadOpenCV();
         
         // Final safety check with user-friendly error
-        if (!cv || !cv.findChessboardCorners) {
-             throw new Error('OpenCV loaded but calibration functions are missing. Please replace public/opencv.js with a full build (including calib3d).');
-        }
+        // if (!cv || !cv.findChessboardCorners) {
+        //      throw new Error('OpenCV loaded but calibration functions are missing. Please replace public/opencv.js with a full build (including calib3d).');
+        // }
 
-        return detectCheckerboard(imageData, settings);
+        // return detectCheckerboard(imageData, settings);
+        throw new Error('Please use backend for chessboard detection.');
     } 
     else if (boardType === 'charuco') {
         throw new Error('ChArUco detection not yet implemented in worker.');
