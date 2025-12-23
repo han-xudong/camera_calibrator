@@ -132,26 +132,30 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const detect = async (imageData: ImageData, settings: any) => {
-    // Pure Client-Side Strategy (Worker)
-    
-    // Fallback: If boardType is checkerboard/chessboard and we have an error or it fails in worker (e.g. OpenCV missing),
-    // we could try the server-side C++ API if running locally or if available.
-    // But since this is primarily for GitHub Pages (static), we stick to worker.
-    
-    // However, if the user explicitly wants to use the local C++ backend during dev:
-    if ((settings.boardType === 'checkerboard' || settings.boardType === 'chessboard') && process.env.NODE_ENV === 'development') {
+    // 1. Try Remote Backend (if configured)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+    if (backendUrl && (settings.boardType === 'checkerboard' || settings.boardType === 'chessboard')) {
         try {
-             return await detectWithBackend(imageData, settings);
+             return await detectWithBackend(imageData, settings, backendUrl);
         } catch (e) {
-             console.warn('Backend detection failed, falling back to worker:', e);
-             // Fallback to worker below
+             console.warn('Remote Backend detection failed, falling back to worker:', e);
         }
     }
 
+    // 2. Try Local Backend (if in dev mode)
+    if ((settings.boardType === 'checkerboard' || settings.boardType === 'chessboard') && process.env.NODE_ENV === 'development' && !backendUrl) {
+        try {
+             return await detectWithBackend(imageData, settings, ''); // Empty means local relative path
+        } catch (e) {
+             console.warn('Local Backend detection failed, falling back to worker:', e);
+        }
+    }
+
+    // 3. Fallback to Worker (WASM/JS)
     return callWorker('DETECT', { imageData, settings });
   };
   
-  const detectWithBackend = async (imageData: ImageData, settings: any) => {
+  const detectWithBackend = async (imageData: ImageData, settings: any, baseUrl: string) => {
         const canvas = document.createElement('canvas');
         canvas.width = imageData.width;
         canvas.height = imageData.height;
@@ -167,7 +171,12 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         formData.append('rows', String(settings.rows || 0));
         formData.append('cols', String(settings.cols || 0));
         
-        const res = await fetch('/api/detect', {
+        // Construct URL: 
+        // If baseUrl is set (e.g. https://hf.space/...), append /detect
+        // If baseUrl is empty (local), use /api/detect
+        const url = baseUrl ? `${baseUrl}/detect` : '/api/detect';
+        
+        const res = await fetch(url, {
             method: 'POST',
             body: formData
         });
@@ -189,21 +198,37 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const calibrate = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
-      // Prioritize Backend Calibration in Development Mode
-      if (process.env.NODE_ENV === 'development') {
+      // 1. Try Remote Backend (if configured)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+      if (backendUrl) {
           try {
-              console.log('[Context] Attempting Backend Calibration...');
-              return await calibrateWithBackend(allImagePoints, objPoints, imageSize);
+              console.log('[Context] Attempting Remote Backend Calibration...');
+              return await calibrateWithBackend(allImagePoints, objPoints, imageSize, backendUrl);
           } catch (e) {
-              console.warn('[Context] Backend calibration failed, falling back to worker:', e);
+              console.warn('[Context] Remote Backend calibration failed, falling back to worker:', e);
+          }
+      }
+
+      // 2. Try Local Backend (if in dev mode)
+      if (process.env.NODE_ENV === 'development' && !backendUrl) {
+          try {
+              console.log('[Context] Attempting Local Backend Calibration...');
+              return await calibrateWithBackend(allImagePoints, objPoints, imageSize, '');
+          } catch (e) {
+              console.warn('[Context] Local Backend calibration failed, falling back to worker:', e);
           }
       }
 
       return callWorker('CALIBRATE', { allImagePoints, objPoints, imageSize });
   };
   
-  const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
-      const res = await fetch('/api/calibrate_compute', {
+  const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any, baseUrl: string) => {
+      // Construct URL:
+      // Remote: /calibrate
+      // Local: /api/calibrate_compute
+      const url = baseUrl ? `${baseUrl}/calibrate` : '/api/calibrate_compute';
+
+      const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ allImagePoints, objPoints, imageSize })
