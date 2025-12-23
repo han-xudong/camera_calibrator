@@ -16,8 +16,30 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [loadingStatus, setLoadingStatus] = useState<string | null>('Initializing...');
+  const [isBackendWakingUp, setIsBackendWakingUp] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const promiseMap = useRef<Map<string, { resolve: Function; reject: Function }>>(new Map());
+
+  // Check backend status on init
+  useEffect(() => {
+      const checkBackend = async () => {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+          if (backendUrl) {
+              try {
+                  // Set a short timeout to check if it's awake
+                  const controller = new AbortController();
+                  const id = setTimeout(() => controller.abort(), 2000);
+                  
+                  await fetch(backendUrl, { signal: controller.signal });
+                  clearTimeout(id);
+              } catch (e) {
+                  // If it fails or times out, it might be sleeping
+                  console.log('Backend might be sleeping or unreachable');
+              }
+          }
+      };
+      checkBackend();
+  }, []);
 
   useEffect(() => {
     // Add timestamp to force cache busting for the worker
@@ -156,45 +178,53 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
   
   const detectWithBackend = async (imageData: ImageData, settings: any, baseUrl: string) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = imageData.width;
-        canvas.height = imageData.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not create canvas context');
-        ctx.putImageData(imageData, 0, 0);
+        setIsBackendWakingUp(true);
+        setLoadingStatus("Connecting to cloud backend... (may take 30s if waking up)");
         
-        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-        if (!blob) throw new Error('Failed to create image blob');
-        
-        const formData = new FormData();
-        formData.append('image', blob, 'upload.jpg');
-        formData.append('rows', String(settings.rows || 0));
-        formData.append('cols', String(settings.cols || 0));
-        
-        // Construct URL: 
-        // If baseUrl is set (e.g. https://hf.space/...), append /detect
-        // If baseUrl is empty (local), use /api/detect
-        const url = baseUrl ? `${baseUrl}/detect` : '/api/detect';
-        
-        const res = await fetch(url, {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await res.json();
-        
-        // Map C++ 'success' to frontend 'found'
-        if (result.success !== undefined) {
-            result.found = result.success;
-        }
-        if (result.camera_matrix) result.cameraMatrix = result.camera_matrix;
-        if (result.dist_coeffs) result.distCoeffs = result.dist_coeffs;
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = imageData.width;
+            canvas.height = imageData.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Could not create canvas context');
+            ctx.putImageData(imageData, 0, 0);
+            
+            const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+            if (!blob) throw new Error('Failed to create image blob');
+            
+            const formData = new FormData();
+            formData.append('image', blob, 'upload.jpg');
+            formData.append('rows', String(settings.rows || 0));
+            formData.append('cols', String(settings.cols || 0));
+            
+            // Construct URL: 
+            // If baseUrl is set (e.g. https://hf.space/...), append /detect
+            // If baseUrl is empty (local), use /api/detect
+            const url = baseUrl ? `${baseUrl}/detect` : '/api/detect';
+            
+            const res = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await res.json();
+            
+            // Map C++ 'success' to frontend 'found'
+            if (result.success !== undefined) {
+                result.found = result.success;
+            }
+            if (result.camera_matrix) result.cameraMatrix = result.camera_matrix;
+            if (result.dist_coeffs) result.distCoeffs = result.dist_coeffs;
 
-        if (!res.ok) {
-             throw new Error(result.error || 'Backend detection failed');
+            if (!res.ok) {
+                 throw new Error(result.error || 'Backend detection failed');
+            }
+            
+            return result;
+        } finally {
+            setIsBackendWakingUp(false);
+            setLoadingStatus(null);
         }
-        
-        return result;
   };
 
   const calibrate = async (allImagePoints: any[], objPoints: any[], imageSize: any) => {
@@ -223,24 +253,32 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
   
   const calibrateWithBackend = async (allImagePoints: any[], objPoints: any[], imageSize: any, baseUrl: string) => {
-      // Construct URL:
-      // Remote: /calibrate
-      // Local: /api/calibrate_compute
-      const url = baseUrl ? `${baseUrl}/calibrate` : '/api/calibrate_compute';
+      setIsBackendWakingUp(true);
+      setLoadingStatus("Calculating calibration... (may take 30s if backend is waking up)");
 
-      const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ allImagePoints, objPoints, imageSize })
-      });
-      
-      const result = await res.json();
-      
-      if (!res.ok) {
-          throw new Error(result.error || 'Backend calibration failed');
+      try {
+          // Construct URL:
+          // Remote: /calibrate
+          // Local: /api/calibrate_compute
+          const url = baseUrl ? `${baseUrl}/calibrate` : '/api/calibrate_compute';
+
+          const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ allImagePoints, objPoints, imageSize })
+          });
+          
+          const result = await res.json();
+          
+          if (!res.ok) {
+              throw new Error(result.error || 'Backend calibration failed');
+          }
+          
+          return result;
+      } finally {
+          setIsBackendWakingUp(false);
+          setLoadingStatus(null);
       }
-      
-      return result;
   };
 
   return (

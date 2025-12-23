@@ -75,6 +75,7 @@ export default function Home() {
             </div>
         );
     }
+    // Display detailed loading status including backend wake-up
     return (
       <div className="flex items-center justify-center h-screen w-screen bg-gray-50">
         <div className="text-center">
@@ -86,6 +87,9 @@ export default function Home() {
       </div>
     );
   }
+
+  // Also show overlay loader if backend is processing/waking up during operation
+  const showOverlayLoader = loadingStatus && isReady;
 
   // Add Images
   const handleAddImages = async (files: FileList) => {
@@ -375,7 +379,17 @@ export default function Home() {
   const canCalibrate = areAllImagesProcessed && images.filter(i => i.status === 'detected').length >= 3;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div className="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      {/* Loading Overlay */}
+      {showOverlayLoader && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <p className="text-gray-700 dark:text-gray-200">{loadingStatus}</p>
+              </div>
+          </div>
+      )}
+
       <Sidebar
         images={images}
         onAddImages={handleAddImages}
