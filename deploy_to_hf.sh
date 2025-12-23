@@ -29,10 +29,9 @@ cp hf_space/app.py "$CLONE_DIR/"
 cp hf_space/requirements.txt "$CLONE_DIR/"
 cp hf_space/README.md "$CLONE_DIR/"
 
-mkdir -p "$CLONE_DIR/cpp"
-cp hf_space/cpp/*.cpp "$CLONE_DIR/cpp/"
-# Note: We don't copy CMakeLists.txt as we compile manually in Dockerfile, 
-# but if we wanted to support CMake in future, we could.
+# mkdir -p "$CLONE_DIR/cpp"
+# cp hf_space/cpp/*.cpp "$CLONE_DIR/cpp/"
+# Note: We switched to Python OpenCV, so C++ files are no longer needed.
 
 # 3. Commit and Push
 echo "📤 Pushing to Hugging Face..."

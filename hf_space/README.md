@@ -10,7 +10,7 @@ pinned: false
 
 # Hugging Face Space Deployment Guide
 
-This directory contains everything needed to deploy the C++ OpenCV backend to a Hugging Face Space.
+This directory contains everything needed to deploy the Python OpenCV backend to a Hugging Face Space.
 
 ## Steps to Deploy
 
@@ -31,10 +31,7 @@ This directory contains everything needed to deploy the C++ OpenCV backend to a 
         /
         ├── Dockerfile
         ├── app.py
-        ├── requirements.txt
-        └── cpp/
-            ├── detect_corners.cpp
-            └── calibrate_camera.cpp
+        └── requirements.txt
         ```
 
 3.  **Wait for Build**:
