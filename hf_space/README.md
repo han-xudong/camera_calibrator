@@ -1,3 +1,13 @@
+---
+title: Opencv Camera Calibration
+emoji: 📸
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Hugging Face Space Deployment Guide
 
 This directory contains everything needed to deploy the C++ OpenCV backend to a Hugging Face Space.
