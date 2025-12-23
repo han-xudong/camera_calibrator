@@ -77,12 +77,19 @@ export default function Home() {
     }
     // Display detailed loading status including backend wake-up
     return (
-      <div className="flex items-center justify-center h-screen w-screen bg-gray-50">
-        <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-700">Loading Detector...</h2>
-            {loadingStatus && <p className="text-gray-500 text-sm mt-2">{loadingStatus}</p>}
-            <p className="text-gray-400 text-xs mt-1">This may take a few seconds.</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4">
+            <div className="relative mb-4">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 dark:border-gray-700"></div>
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent absolute top-0 left-0"></div>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Loading Detector...</h2>
+            {loadingStatus && (
+                <p className="text-gray-600 dark:text-gray-300 text-sm text-center font-medium animate-pulse">
+                    {loadingStatus}
+                </p>
+            )}
+            <p className="text-gray-400 text-xs mt-4">Initializing OpenCV & WASM modules</p>
         </div>
       </div>
     );
@@ -382,10 +389,14 @@ export default function Home() {
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Loading Overlay */}
       {showOverlayLoader && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                  <p className="text-gray-700 dark:text-gray-200">{loadingStatus}</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity duration-300">
+              <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4 transform transition-all scale-100">
+                  <div className="relative mb-4">
+                      <div className="animate-spin rounded-full h-14 w-14 border-4 border-gray-200 dark:border-gray-700"></div>
+                      <div className="animate-spin rounded-full h-14 w-14 border-4 border-blue-500 border-t-transparent absolute top-0 left-0"></div>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Processing...</h3>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm text-center font-medium animate-pulse">{loadingStatus}</p>
               </div>
           </div>
       )}
