@@ -22,13 +22,10 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Check backend status on init
   useEffect(() => {
-      // In production (GitHub Pages), we rely on the worker primarily for AprilTag.
-      // But if we have a backend URL, we try to ping it.
-      // However, if the ping fails/timeouts, we shouldn't block the UI or show an error,
-      // because we still have the worker fallback (at least for AprilTag, and maybe OpenCV if WASM loaded).
-      
       const checkBackend = async () => {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL;
+          console.log('[Context] Configured Backend URL:', backendUrl);
+          
           if (backendUrl) {
               try {
                   const controller = new AbortController();
