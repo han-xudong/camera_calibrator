@@ -178,8 +178,9 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
   
   const detectWithBackend = async (imageData: ImageData, settings: any, baseUrl: string) => {
-        setIsBackendWakingUp(true);
-        setLoadingStatus("Connecting to cloud backend... (may take 30s if waking up)");
+        // We do not set loadingStatus here to avoid blocking overlay during image detection.
+        // The individual image card spinner will indicate processing.
+        // setIsBackendWakingUp(true); // Optional: could be used for non-blocking indicators
         
         try {
             const canvas = document.createElement('canvas');
@@ -222,8 +223,8 @@ export const CalibrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
             
             return result;
         } finally {
-            setIsBackendWakingUp(false);
-            setLoadingStatus(null);
+            // setIsBackendWakingUp(false);
+            // setLoadingStatus(null);
         }
   };
 
