@@ -2,12 +2,14 @@
 
 A modern, web-based tool for camera calibration built with Next.js and OpenCV.
 
+![Screenshot](./public/assets/screenshot.jpg)
+
 ## 🚀 Features
 
 - **Web-Based Interface**: Clean, responsive UI built with Next.js and Tailwind CSS.
 - **Robust Detection**: Utilizes a Python backend (FastAPI + OpenCV) for reliable chessboard detection and calibration.
 - **Real-time Feedback**: Visualizes detected corners and reprojection errors.
-- **Hybrid Architecture**: 
+- **Hybrid Architecture**:
   - **Frontend**: Next.js (React), Tailwind CSS. Deployed on GitHub Pages.
   - **Backend**: Python, FastAPI, OpenCV. Deployed on Hugging Face Spaces.
 - **Fallbacks**: Robust error handling with fallback to specific backend endpoints.
