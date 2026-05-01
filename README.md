@@ -11,9 +11,8 @@ A modern, web-based tool for camera calibration built with Next.js and OpenCV.
 - **Web-Based Interface**: Clean, responsive UI built with Next.js and Tailwind CSS.
 - **Robust Detection**: Utilizes a Python backend (FastAPI + OpenCV) for reliable chessboard detection and calibration.
 - **Real-time Feedback**: Visualizes detected corners and reprojection errors.
-- **Hybrid Architecture**:
-  - **Frontend**: Next.js (React), Tailwind CSS. Deployed on GitHub Pages.
-  - **Backend**: Python, FastAPI, OpenCV. Deployed on Hugging Face Spaces.
+- **Frontend Deployment**: Next.js (React) and Tailwind CSS on Vercel.
+- **Backend Deployment**: Python, FastAPI, and OpenCV on Hugging Face Spaces.
 - **Fallbacks**: Robust error handling with fallback to specific backend endpoints.
 
 ## 🛠️ Architecture
@@ -73,13 +72,20 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:7860
 
 ## 📦 Deployment
 
-### Frontend (GitHub Pages)
+### Frontend (Vercel)
 
-The frontend is automatically deployed to GitHub Pages via GitHub Actions.
+Deploy the Next.js app to Vercel through GitHub Actions.
 
-1. The workflow is defined in `.github/workflows/deploy.yml`.
-2. Ensure you have configured the **Repository Variable** `NEXT_PUBLIC_BACKEND_API_URL` in your GitHub Settings (Settings > Secrets and variables > Actions > Variables).
-   - Value: `https://your-space-name.hf.space`
+1. Create a Vercel project for this repository.
+2. In Vercel project settings, add these environment variables:
+   - `NEXT_PUBLIC_BACKEND_API_URL=https://your-space-name.hf.space`
+   - `NEXT_PUBLIC_SITE_URL=https://your-production-domain`
+3. In GitHub repository secrets, add:
+   - `VERCEL_TOKEN`
+   - `VERCEL_ORG_ID`
+   - `VERCEL_PROJECT_ID`
+4. The deployment workflow is defined in `.github/workflows/deploy-vercel.yml`.
+5. Push to `main`, or run the workflow manually from GitHub Actions, to deploy production to Vercel.
 
 ### Backend (Hugging Face Spaces)
 
