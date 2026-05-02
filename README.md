@@ -74,18 +74,15 @@ NEXT_PUBLIC_BACKEND_API_URL=http://localhost:7860
 
 ### Frontend (Vercel)
 
-Deploy the Next.js app to Vercel through GitHub Actions.
+Deploy the Next.js app with Vercel Git integration, and use GitHub Actions only for CI checks.
 
-1. Create a Vercel project for this repository.
+1. Connect this repository to a Vercel project.
 2. In Vercel project settings, add these environment variables:
    - `NEXT_PUBLIC_BACKEND_API_URL=https://your-space-name.hf.space`
    - `NEXT_PUBLIC_SITE_URL=https://your-production-domain`
-3. In GitHub repository secrets, add:
-   - `VERCEL_TOKEN`
-   - `VERCEL_ORG_ID`
-   - `VERCEL_PROJECT_ID`
-4. The deployment workflow is defined in `.github/workflows/deploy-vercel.yml`.
-5. Push to `main`, or run the workflow manually from GitHub Actions, to deploy production to Vercel.
+3. Vercel will automatically deploy pushes to `main` and create preview deployments for pull requests.
+4. GitHub Actions runs `.github/workflows/deploy-vercel.yml` as a CI workflow to verify the project still builds.
+5. No Vercel deployment secrets are required in GitHub unless you later choose to move deployment back into Actions.
 
 ### Backend (Hugging Face Spaces)
 
