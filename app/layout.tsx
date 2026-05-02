@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { CalibrationProvider } from "./context/CalibrationContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -86,6 +87,7 @@ export default function RootLayout({
             {children}
           </CalibrationProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
